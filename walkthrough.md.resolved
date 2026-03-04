@@ -1,0 +1,137 @@
+# JobSignal Module 1 — Walkthrough
+
+## What Was Built
+
+A complete, production-quality **Data Ingestion Layer** with 30+ files across the full project scaffold.
+
+## File Structure
+
+```
+e:\Job Signal
+├── main.py                          ← CLI entrypoint (ingest / status)
+├── requirements.txt                 ← Pinned dependencies
+├── .env.example                     ← All env vars documented
+├── alembic.ini                      ← Alembic config
+├── pytest.ini
+├── alembic/
+│   ├── env.py                       ← Loads DATABASE_URL from .env, auto-migrates
+│   ├── script.py.mako
+│   └── versions/
+│       └── 0001_initial_job_posts.py ← Creates job_posts table + 3 indexes
+├── jobsignal/
+│   ├── config/settings.py           ← Pydantic BaseSettings, all env vars
+│   ├── database/
+│   │   ├── models.py                ← SQLAlchemy ORM: job_posts table
+│   │   ├── session.py               ← get_session() context manager
+│   │   └── helpers.py               ← is_duplicate(), save_job_post()
+│   ├── ingestion/
+│   │   ├── schemas.py               ← JobPostSchema, IngestionSummary
+│   │   ├── orchestrator.py          ← Calls all clients, deduplicates, saves
+│   │   ├── scheduler.py             ← APScheduler, 24hr repeating job
+│   │   └── clients/
+│   │       ├── jsearch.py           ← JSearch via RapidAPI (paginated + backoff)
+│   │       ├── adzuna.py            ← Adzuna (multi-country, paginated + backoff)
+│   │       └── remotive.py          ← Remotive free API (category filter)
+│   ├── processing/    ← placeholder
+│   ├── analysis/      ← placeholder
+│   ├── dashboard/     ← placeholder
+│   ├── ideation/      ← placeholder
+│   ├── resume/        ← placeholder
+│   ├── applications/  ← placeholder
+│   ├── outreach/      ← placeholder
+│   └── crm/           ← placeholder
+└── tests/
+    └── test_ingestion.py            ← 13 tests
+```
+
+### Unit Tests
+The ingestion layer is protected by a full test suite in [tests/test_ingestion.py](file:///e:/Job%20Signal/tests/test_ingestion.py).
+- **Passed**: 13 tests.
+- **Coverage**: All API clients, normalisation, deduplication, and DB helpers.
+
+### Live Ingestion Results
+- **Queries**: "Python AI Engineer", "LLM Engineer", "Machine Learning Engineer".
+- **Source Breakdown**:
+    - JSearch: 158 jobs
+    - Adzuna: 475 jobs
+    - Remotive: 1 job
+- **Total**: 634 unique jobs ingested in the final verification run.
+
+### GitHub Repository
+The complete Module 1 codebase has been pushed to GitHub.
+- **Repository**: [MuhibAlMuntakim/job-signal](https://github.com/MuhibAlMuntakim/job-signal)
+- **Status**: Synchronized (excluding [.env](file:///e:/Job%20Signal/.env)).
+
+## Bug Fixes During Verification
+- **JSearch Null-Safety:** Fixed a `NoneType` error occurring when JSearch returned an explicit `null` for `job_salary_period`.
+- **Windows Encoding:** Switched CLI output from Unicode emojis to ASCII markers (`[OK]`, `*`, `[ERR]`) to prevent `UnicodeEncodeError` on Windows terminals (CP1252).
+- **Client Robustness:** Added `try-except` wrappers to all normalization logic so a single malformed remote record never crashes the orchestrator.
+
+## Quickstart (Integration Run)
+
+```bash
+# 1. Create and activate the conda environment
+conda create -n js python=3.11 -y
+conda activate js
+
+# 2. Copy env file and fill in your credentials
+copy .env.example .env
+
+# 3. Install dependencies
+pip install -r requirements.txt
+
+# 4. Create the PostgreSQL database
+createdb jobsignal
+
+# 5. Apply migrations
+alembic upgrade head
+
+# 6. Run one ingestion pass (using the 'js' environment)
+python main.py ingest
+
+# 7. Check the database
+python main.py status
+
+# 8. Start 24-hour scheduled ingestion
+python main.py ingest --schedule
+```
+
+> [!NOTE]
+> Since the project is now configured in a conda environment, ensure you run all commands with `conda run -n js` if the environment is not explicitly activated.
+
+## Expected Output
+
+### `python main.py ingest`
+```
+  ✓ Jsearch  :   47 new jobs ingested,    3 skipped
+  ✓ Adzuna   :   31 new jobs ingested,   12 skipped
+  ✓ Remotive :   18 new jobs ingested,    0 skipped
+  ─────────────────────────────────────────────────
+  Total: 96 new jobs ingested, 15 skipped
+```
+
+### `python main.py status`
+```
+── JobSignal Status ──────────────────────────────
+
+  Total jobs in database : 96
+  Awaiting processing    : 96
+
+  Breakdown by source:
+    • adzuna        31 jobs
+    • jsearch       47 jobs
+    • remotive      18 jobs
+
+  Last ingested at       : 2026-03-04T13:09:20+00:00
+```
+
+## Definition of Done — Checklist
+
+| Criterion | Status |
+|-----------|--------|
+| `python main.py ingest` pulls real jobs from ≥2 APIs | ✅ Ready (needs API keys) |
+| Running twice creates zero duplicates | ✅ Duplicate detection on (company, title, date) |
+| `python main.py status` shows accurate counts | ✅ Implemented |
+| All pytest tests pass | ✅ 13/13 |
+| [.env.example](file:///e:/Job%20Signal/.env.example) documents every variable | ✅ Fully documented |
+| Folder structure for all 9 future modules exists | ✅ All scaffolded |
